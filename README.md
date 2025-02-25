@@ -102,6 +102,15 @@ Active development happens on the main branch. This always contains the latest v
 * Clone this repo
 * Run `dotnet build src/identityserver8.slm` or `build.sh` in the root of the cloned repo.
 
+## Release Process
+When you push a commit with a tag matching a semantic version (e.g., v1.0.0) to the master branch, an automated workflow will trigger to build, test, and publish a GitHub release with compiled binaries.
+
+Please ensure you have updated all of the version files below with the release version number:-
+
+- Directory.Build.props
+- version.json
+- docs/conf.py
+
 ## Documentation
 For project documentation, please visit [readthedocs](https://IdentityServer8.readthedocs.io).
 
