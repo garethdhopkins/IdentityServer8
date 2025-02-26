@@ -21,6 +21,27 @@ jobs:
 
       - name: Display Package Version
         run: echo "PackageVersion=${{ steps.nbgv.outputs.SemVer2 }}"
+        
+      - name: Validate Package Version Matches Tag
+        run: |
+          # Extract version from tag (remove 'v' prefix if present)
+          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"
+          
+          # Extract version from code
+          CODE_VERSION="${{ steps.nbgv.outputs.SemVer2 }}"
+          
+          echo "Tag version: $TAG_VERSION"
+          echo "Code version: $CODE_VERSION"
+          
+          # Compare versions
+          if [ "$TAG_VERSION" != "$CODE_VERSION" ]; then
+            echo "Error: Version mismatch between tag ($TAG_VERSION) and code ($CODE_VERSION)"
+            echo "Please make sure the PackageVersion in code is the same as the tag name"
+            exit 1
+          else
+            echo "✓ Versions match!"
+          fi
 
       - name: Restore dependencies
         run: dotnet restore src/IdentityServer8.sln
