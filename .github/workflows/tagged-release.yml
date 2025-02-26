@@ -108,7 +108,7 @@ jobs:
           release_name: ${{ steps.tag-message.outputs.message }}
           body: ${{ steps.tag-message.outputs.message }}
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
