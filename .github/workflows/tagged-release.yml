@@ -51,7 +51,21 @@ jobs:
       - name: Get tag message
         id: tag-message
         run: |
-          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+          # Try to get annotated tag message (works only with annotated tags)
+          TAG_MESSAGE=$(git tag -n99 ${{ github.ref_name }} | tail -n +1 | cut -f2- -d' ')
+          
+          # Debug output
+          echo "Raw tag message output: $TAG_MESSAGE"
+          
+          # If empty or just the tag name, use a default message
+          if [ -z "$TAG_MESSAGE" ] || [ "$TAG_MESSAGE" == "${{ github.ref_name }}" ]; then
+            TAG_MESSAGE="Release ${{ github.ref_name }}"
+            echo "No annotation found, using default message"
+          fi
+          
+          echo "Final tag message: $TAG_MESSAGE"
+          
+          # Set output
           echo "message<<EOF" >> $GITHUB_OUTPUT
           echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -67,8 +81,8 @@ jobs:
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          body: ${{ steps.tag-message.outputs.message || format('Release {0}', github.ref_name) }}
+          release_name: ${{ steps.tag-message.outputs.message }}
+          body: ${{ steps.tag-message.outputs.message }}
           draft: false
           prerelease: false
         env:
