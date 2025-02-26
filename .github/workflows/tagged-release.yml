@@ -5,25 +5,53 @@ on:
       - 'v*'
 jobs:
   build-and-release:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: 8.0.x
-      - name: Restore
+
+      - uses: dotnet/nbgv@master
+        id: nbgv
+
+      - name: Display Package Version
+        run: echo "PackageVersion=${{ steps.nbgv.outputs.SemVer2 }}"
+
+      - name: Restore dependencies
         run: dotnet restore src/IdentityServer8.sln
       - name: Build
         run: dotnet build src/IdentityServer8.sln --configuration Release --no-restore
       - name: Test
         run: dotnet test src/IdentityServer8.sln --configuration Release --no-build
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4.0.1
+        env:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: alexhiggins732/IdentityServer8
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          
+      # Add step to pack NuGet packages
+      - name: Pack NuGet Packages
+        run: dotnet pack src/IdentityServer8.sln --configuration Release --no-build -o nuget -p:PackageVersion=${{ steps.nbgv.outputs.SemVer2 }}
+        
+      # Package binaries as before
       - name: Package Artifacts
         run: dotnet publish src/IdentityServer8.sln --configuration Release --no-build -o out
       - name: Zip Artifacts
         run: Compress-Archive -Path ./out/* -DestinationPath ./identityserver8_binaries.zip
         shell: pwsh
+        
+      # Create a zip of NuGet packages for the release
+      - name: Zip NuGet Packages
+        run: Compress-Archive -Path ./nuget/*.nupkg -DestinationPath ./identityserver8_nuget_packages.zip
+        shell: pwsh
+        
       - name: Create Release
         if: ${{ success() }}
         id: create_release
@@ -36,7 +64,9 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Release Assets
+          
+      # Upload binaries as before
+      - name: Upload Binaries
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -45,3 +75,18 @@ jobs:
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Upload NuGet packages to release
+      - name: Upload NuGet Packages
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./identityserver8_nuget_packages.zip
+          asset_name: identityserver8_nuget_packages.zip
+          asset_content_type: application/zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      # Push packages to NuGet.org
+      - name: Push to NuGet.org
+        run: dotnet nuget push ./nuget/*.nupkg --skip-duplicate --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
