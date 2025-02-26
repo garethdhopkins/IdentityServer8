@@ -21,6 +21,9 @@ jobs:
         run: dotnet test src/IdentityServer8.sln --configuration Release --no-build
       - name: Package Artifacts
         run: dotnet publish src/IdentityServer8.sln --configuration Release --no-build -o out
+      - name: Zip Artifacts
+        run: Compress-Archive -Path ./out/* -DestinationPath ./identityserver8_binaries.zip
+        shell: pwsh
       - name: Create Release
         if: ${{ success() }}
         id: create_release
@@ -37,8 +40,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./out
-          asset_name: identityserver8_binaries
+          asset_path: ./identityserver8_binaries.zip
+          asset_name: identityserver8_binaries.zip
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
