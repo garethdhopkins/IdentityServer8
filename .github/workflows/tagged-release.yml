@@ -3,11 +3,8 @@ on:
   push:
     tags:
       - 'v*'
-
 jobs:
   build-and-release:
-    # Only run this job if we are on the master branch
-    if: github.ref == 'refs/heads/master'
     runs-on: windows-latest
     steps:
       - name: Checkout code
