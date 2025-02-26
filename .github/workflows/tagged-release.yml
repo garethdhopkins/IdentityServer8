@@ -11,6 +11,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          fetch-tags: true
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
@@ -68,23 +69,43 @@ jobs:
         run: Compress-Archive -Path ./out/* -DestinationPath ./identityserver8_binaries.zip
         shell: pwsh
         
-      # Extract tag message
+      # Extract tag message with robust approach
       - name: Get tag message
         id: tag-message
         run: |
-          # Try to get tag annotation (works only for annotated tags)
-          TAG_ANNOTATION=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+          echo "Current tag: ${{ github.ref_name }}"
           
-          echo "Checking for annotated tag message..."
-          echo "Raw tag annotation output: $TAG_ANNOTATION"
+          # Try multiple approaches to get annotated tag message
+          echo "Attempt 1: Using cat-file to extract tag message"
+          TAG_TYPE=$(git cat-file -t ${{ github.ref_name }} || echo "unknown")
+          echo "Tag type: $TAG_TYPE"
           
-          # Use tag annotation if it exists, otherwise use default message
-          if [ -n "$TAG_ANNOTATION" ]; then
-            TAG_MESSAGE="$TAG_ANNOTATION"
-            echo "Using tag annotation message"
+          if [ "$TAG_TYPE" == "tag" ]; then
+            # This is an annotated tag, extract its message
+            echo "Found annotated tag, extracting message..."
+            # Extract tag message, skipping the header
+            TAG_MESSAGE=$(git cat-file -p ${{ github.ref_name }} | sed -n '/^$/,$ p' | tail -n +2)
+            echo "Message from cat-file: $TAG_MESSAGE"
+          else
+            echo "Not an annotated tag, trying other methods..."
+            
+            echo "Attempt 2: Using for-each-ref command"
+            TAG_MESSAGE=$(git for-each-ref refs/tags/${{ github.ref_name }} --format='%(contents)')
+            echo "Message from for-each-ref: $TAG_MESSAGE"
+            
+            if [ -z "$TAG_MESSAGE" ]; then
+              echo "Attempt 3: Using show command"
+              TAG_MESSAGE=$(git show -s --format=%B ${{ github.ref_name }} 2>/dev/null || echo "")
+              echo "Message from show: $TAG_MESSAGE"
+            fi
+          fi
+          
+          # Final decision - use the tag message if we got one, otherwise use default
+          if [ -n "$TAG_MESSAGE" ] && [ "$TAG_MESSAGE" != "${{ github.ref_name }}" ]; then
+            echo "Using extracted tag message"
           else
             TAG_MESSAGE="Release ${{ github.ref_name }}"
-            echo "No tag annotation found, using default message"
+            echo "Using default message"
           fi
           
           echo "Final tag message: $TAG_MESSAGE"
