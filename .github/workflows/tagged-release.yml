@@ -1,21 +1,17 @@
 name: Tagged Release
 on:
   push:
-    branches:
-      - master
     tags:
       - 'v*'
 
 jobs:
   build-and-release:
-    strategy:
-      fail-fast: false
-      matrix:
-        runs-on: [macOS-latest, ubuntu-latest, windows-latest]
-    name: ${{ matrix.runs-on }}
-    runs-on: ${{ matrix.runs-on }}
+    # Only run this job if we are on the master branch
+    if: github.ref == 'refs/heads/master'
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
