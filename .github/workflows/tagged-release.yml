@@ -47,6 +47,15 @@ jobs:
         run: Compress-Archive -Path ./out/* -DestinationPath ./identityserver8_binaries.zip
         shell: pwsh
         
+      # Extract tag message
+      - name: Get tag message
+        id: tag-message
+        run: |
+          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
       # Create a zip of NuGet packages for the release
       - name: Zip NuGet Packages
         run: Compress-Archive -Path ./nuget/*.nupkg -DestinationPath ./identityserver8_nuget_packages.zip
@@ -59,7 +68,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
-          body: "Automated release for version ${{ github.ref_name }}"
+          body: ${{ steps.tag-message.outputs.message || format('Release {0}', github.ref_name) }}
           draft: false
           prerelease: false
         env:
